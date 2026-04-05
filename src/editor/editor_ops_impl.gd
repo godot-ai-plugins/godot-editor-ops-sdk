@@ -31,23 +31,54 @@ static func get_editor_logs(options: Dictionary = {}) -> Dictionary:
 	var level_filter: String = options.get("level", "all")
 	var limit: int = options.get("limit", 50)
 	var tail_bytes: int = options.get("tail_bytes", 65536)  # Read last 64KB by default
+	var after_timestamp: float = float(options.get("after_timestamp", -1.0))
 
-	# Always read from the engine log file directly.
-	# This works regardless of process lifetime since the log persists on disk.
-	var entries := _read_engine_log_tail(tail_bytes)
+	var entries: Array = []
 
-	# Apply level filter
-	var filtered: Array = []
-	for entry in entries:
-		if level_filter != "all" and entry.get("level", "") != level_filter:
+	for entry in _log_buffer:
+		if _should_skip_log_entry(entry, after_timestamp, level_filter):
 			continue
-		filtered.append(entry)
+		entries.append(entry)
+
+	var engine_entries: Array = []
+	if _engine_log_position >= 0:
+		engine_entries = _read_engine_logs()
+	elif after_timestamp < 0.0:
+		engine_entries = _read_engine_log_tail(tail_bytes)
+		_mark_engine_log_position()
+	else:
+		# Without an established engine log cursor, we cannot safely infer
+		# which persisted lines were written after a wall-clock timestamp.
+		_mark_engine_log_position()
+
+	for entry in engine_entries:
+		if _should_skip_log_entry(entry, after_timestamp, level_filter):
+			continue
+		entries.append(entry)
+
+	entries.sort_custom(func(a, b):
+		var a_ts := float(a.get("timestamp", 0.0))
+		var b_ts := float(b.get("timestamp", 0.0))
+		if is_equal_approx(a_ts, b_ts):
+			return int(a.get("id", -1)) < int(b.get("id", -1))
+		return a_ts < b_ts
+	)
 
 	# Return the most recent `limit` entries
-	if filtered.size() > limit:
-		filtered = filtered.slice(filtered.size() - limit)
+	if entries.size() > limit:
+		entries = entries.slice(entries.size() - limit)
 
-	return Result.ok({"logs": filtered, "total": filtered.size()})
+	return Result.ok({"logs": entries, "total": entries.size()})
+
+
+static func _should_skip_log_entry(entry: Dictionary, after_timestamp: float, level_filter: String) -> bool:
+	if after_timestamp >= 0.0 and float(entry.get("timestamp", 0.0)) < after_timestamp:
+		return true
+
+	if level_filter != "all" and entry.get("level", "") != level_filter:
+		return true
+
+	return false
 
 
 static func get_log_timestamp() -> Dictionary:
@@ -137,7 +168,7 @@ static func _read_engine_log_tail(tail_bytes: int) -> Array:
 		return []
 	var file_len := file.get_length()
 	# Seek to tail_bytes before end, or start of file
-	var read_start := max(0, file_len - tail_bytes)
+	var read_start = max(0, file_len - tail_bytes)
 	file.seek(read_start)
 	var bytes := file.get_buffer(file_len - read_start)
 	file.close()
