@@ -30,21 +30,15 @@ static func push_log(level: String, message: String) -> void:
 static func get_editor_logs(options: Dictionary = {}) -> Dictionary:
 	var level_filter: String = options.get("level", "all")
 	var limit: int = options.get("limit", 50)
-	var after_timestamp: float = float(options.get("after_timestamp", 0))
+	var tail_bytes: int = options.get("tail_bytes", 65536)  # Read last 64KB by default
 
+	# Always read from the engine log file directly.
+	# This works regardless of process lifetime since the log persists on disk.
+	var entries := _read_engine_log_tail(tail_bytes)
+
+	# Apply level filter
 	var filtered: Array = []
-
-	# 1) SDK internal logs (timestamp-filtered)
-	for entry in _log_buffer:
-		if after_timestamp > 0 and float(entry.get("timestamp", 0)) <= after_timestamp:
-			continue
-		if level_filter != "all" and entry.get("level", "") != level_filter:
-			continue
-		filtered.append(entry)
-
-	# 2) Engine log file (position-filtered)
-	var engine_entries := _read_engine_logs()
-	for entry in engine_entries:
+	for entry in entries:
 		if level_filter != "all" and entry.get("level", "") != level_filter:
 			continue
 		filtered.append(entry)
@@ -134,6 +128,28 @@ static func _get_engine_log_path() -> String:
 	var log_path: String = ProjectSettings.get_setting(
 		"debug/file_logging/log_path", "user://logs/godot.log")
 	return ProjectSettings.globalize_path(log_path)
+
+
+static func _read_engine_log_tail(tail_bytes: int) -> Array:
+	var path := _get_engine_log_path()
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return []
+	var file_len := file.get_length()
+	# Seek to tail_bytes before end, or start of file
+	var read_start := max(0, file_len - tail_bytes)
+	file.seek(read_start)
+	var bytes := file.get_buffer(file_len - read_start)
+	file.close()
+	if bytes.size() == 0:
+		return []
+	var text := bytes.get_string_from_utf8()
+	# If we started mid-file, skip the first (likely partial) line
+	if read_start > 0:
+		var nl := text.find("\n")
+		if nl >= 0:
+			text = text.substr(nl + 1)
+	return _parse_engine_log_lines(text)
 
 
 static func _mark_engine_log_position() -> void:

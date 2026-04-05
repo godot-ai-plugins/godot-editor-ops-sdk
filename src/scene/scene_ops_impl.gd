@@ -19,8 +19,14 @@ static func create_scene_from_json(json: Dictionary) -> Dictionary:
 	if not root_data.has("type") or root_data["type"] == "":
 		return Result.err("root node must have a 'type'", "ERR_INVALID_INPUT")
 
-	var scene_name: String = json.get("scene_name", root_data.get("name", "Scene"))
-	var scene_path := PathUtils.normalize_res_path(scene_name)
+	# Prefer explicit path > scene_path > scene_name > root name
+	var explicit_path: String = json.get("path", json.get("scene_path", ""))
+	var scene_path: String
+	if not explicit_path.is_empty():
+		scene_path = PathUtils.normalize_res_path(explicit_path)
+	else:
+		var scene_name: String = json.get("scene_name", root_data.get("name", "Scene"))
+		scene_path = PathUtils.normalize_res_path(scene_name)
 	if not scene_path.ends_with(".tscn"):
 		scene_path += ".tscn"
 

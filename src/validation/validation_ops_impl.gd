@@ -216,6 +216,55 @@ static func validate_script_references(scene_path: String) -> Dictionary:
 	})
 
 
+static func validate_project(root_path: String = "res://") -> Dictionary:
+	var scenes := _find_all_scenes(root_path)
+	if scenes.is_empty():
+		return Result.ok({"scenes_checked": 0, "all_valid": true, "results": []})
+
+	var results: Array = []
+	var all_valid := true
+	for scene_path in scenes:
+		var result := validate_all(scene_path)
+		var valid: bool = result.get("ok", false) and result.get("data", {}).get("valid", false)
+		if not valid:
+			all_valid = false
+		results.append({
+			"scene": scene_path,
+			"valid": valid,
+			"data": result.get("data", {}) if result.get("ok", false) else {},
+			"error": result.get("error", "") if not result.get("ok", false) else "",
+		})
+
+	return Result.ok({
+		"scenes_checked": scenes.size(),
+		"all_valid": all_valid,
+		"results": results,
+	})
+
+
+static func _find_all_scenes(root_path: String) -> Array:
+	var scenes: Array = []
+	_scan_dir_for_scenes(root_path, scenes)
+	return scenes
+
+
+static func _scan_dir_for_scenes(path: String, result: Array) -> void:
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var fname := dir.get_next()
+	while not fname.is_empty():
+		if not fname.begins_with("."):
+			var full_path := path.path_join(fname)
+			if dir.current_is_dir():
+				_scan_dir_for_scenes(full_path, result)
+			elif fname.ends_with(".tscn"):
+				result.append(full_path)
+		fname = dir.get_next()
+	dir.list_dir_end()
+
+
 static func validate_all(scene_path: String) -> Dictionary:
 	var scene_result := validate_scene(scene_path)
 	if not scene_result.get("ok", false):

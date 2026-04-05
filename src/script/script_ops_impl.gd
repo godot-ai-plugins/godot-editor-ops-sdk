@@ -159,12 +159,93 @@ static func compile_check(path: String) -> Dictionary:
 	path = PathUtils.normalize_res_path(path)
 	if not FileAccess.file_exists(path):
 		return Result.err("Script not found: %s" % path, "ERR_SCRIPT_NOT_FOUND")
-	var script := GDScript.new()
-	script.source_code = FileAccess.get_file_as_string(path)
+
+	var source := FileAccess.get_file_as_string(path)
+
+	# Collect autoload names from project settings for error classification
+	var autoload_names: Array = []
+	for key in ProjectSettings.get_property_list():
+		var pname: String = key.get("name", "")
+		if pname.begins_with("autoload/"):
+			autoload_names.append(pname.substr(9))
+
+	# Try loading through ResourceLoader first — this lets the engine resolve
+	# dependencies (preload, class_name) correctly via the project context.
+	var script: GDScript = null
+	if ResourceLoader.exists(path, "Script"):
+		var res = load(path)
+		if res is GDScript:
+			script = res
+			# Force a fresh reload to catch current source changes
+			script.source_code = source
+	if script == null:
+		script = GDScript.new()
+		script.source_code = source
+		script.resource_path = path
+
 	var err := script.reload()
 	if err == OK:
-		return Result.ok({"valid": true})
-	return Result.ok({"valid": false, "errors": [{"line": 0, "column": 0, "message": "Compilation failed (error code: %d)" % err, "source": path}]})
+		return Result.ok({"valid": true, "errors": [], "warnings": []})
+
+	# Compilation failed — try to classify errors from the source
+	var errors: Array = []
+	var warnings: Array = []
+	var raw_message := "Compilation failed (error code: %d)" % err
+
+	# Scan source lines for identifiers that match autoload singletons
+	var referenced_autoloads := _find_autoload_references(source, autoload_names)
+	if not referenced_autoloads.is_empty():
+		for al_name in referenced_autoloads:
+			warnings.append({
+				"line": 0,
+				"column": 0,
+				"message": "References autoload singleton '%s' — not resolvable in headless compile check" % al_name,
+				"source": path,
+				"severity": "autoload_warning",
+			})
+
+	# If the only likely cause is autoload references, classify as warning-only
+	if not referenced_autoloads.is_empty():
+		errors.append({
+			"line": 0,
+			"column": 0,
+			"message": raw_message,
+			"source": path,
+			"severity": "error",
+			"may_be_autoload": true,
+		})
+	else:
+		errors.append({
+			"line": 0,
+			"column": 0,
+			"message": raw_message,
+			"source": path,
+			"severity": "error",
+			"may_be_autoload": false,
+		})
+
+	return Result.ok({
+		"valid": false,
+		"errors": errors,
+		"warnings": warnings,
+		"autoload_names": autoload_names,
+	})
+
+
+static func _find_autoload_references(source: String, autoload_names: Array) -> Array:
+	var found: Array = []
+	for al_name in autoload_names:
+		var name_str: String = str(al_name)
+		# Match as a standalone identifier (e.g. "EventBus.emit" or "EventBus")
+		# Simple heuristic: check if the name appears as a word boundary in non-comment lines
+		for line in source.split("\n"):
+			var stripped := line.strip_edges()
+			if stripped.begins_with("#"):
+				continue
+			if name_str in stripped and name_str not in found:
+				found.append(name_str)
+				break
+	return found
 
 
 static func get_script_structure(path: String) -> Dictionary:
