@@ -5,6 +5,8 @@
 Godot editor-only SDK for secondary development, supporting scene, script, resource, and file operations.
 It is not a standalone runnable SDK; you can directly integrate the folder into your own project. Internal imports use relative `preload()` paths, so the SDK can live under any project path as long as the folder structure stays intact.
 
+Supported versions: Godot 4.x only.
+
 Not headless-safe — all file-system refresh calls are guarded by `Engine.is_editor_hint()`.
 
 ## Layout
