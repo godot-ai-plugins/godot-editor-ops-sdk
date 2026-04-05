@@ -15,3 +15,6 @@ static func validate_script_references(scene_path: String) -> Dictionary:
 
 static func validate_all(scene_path: String) -> Dictionary:
 	return Internal.validate_all(scene_path)
+
+static func validate_project(root_path: String = "res://") -> Dictionary:
+	return Internal.validate_project(root_path)
