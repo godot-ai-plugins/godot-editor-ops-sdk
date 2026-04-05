@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene_operation.schema.json",
+  "description": "Input for SceneOps.create_scene_from_json()",
+  "type": "object",
+  "required": ["scene_path", "root"],
+  "properties": {
+    "scene_path": {
+      "type": "string",
+      "description": "Output path for the .tscn file, e.g. res://scenes/player.tscn",
+      "pattern": "^res://.*\\.tscn$"
+    },
+    "root": {
+      "$ref": "node_definition.schema.json",
+      "description": "Root node of the scene tree"
+    }
+  },
+  "additionalProperties": false
+}

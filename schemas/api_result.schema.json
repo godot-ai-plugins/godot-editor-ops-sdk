@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "api_result.schema.json",
+  "description": "Unified API result format for godot-editor-ops-sdk",
+  "oneOf": [
+    {
+      "type": "object",
+      "description": "Success result",
+      "required": ["ok", "data"],
+      "properties": {
+        "ok": { "const": true },
+        "data": {}
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Error result",
+      "required": ["ok", "error", "code"],
+      "properties": {
+        "ok": { "const": false },
+        "error": { "type": "string", "description": "Human-readable error message" },
+        "code": { "type": "string", "description": "Machine-readable error code, e.g. ERR_SCENE_LOAD_FAILED" },
+        "context": { "type": "object", "description": "Optional additional context" }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

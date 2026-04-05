@@ -22,6 +22,7 @@ func _run() -> void:
 
 	_test_file_system()
 	_test_scene_ops()
+	_test_scene_schema()
 	_test_script_ops()
 	_test_resource_ops()
 	_test_validation_ops()
@@ -336,6 +337,103 @@ func _test_scene_ops() -> void:
 
 	r = SceneOps.add_node(scene_path, "NonexistentParent", {"name": "X", "type": "Node"})
 	_assert_err(r, "add_node: nonexistent parent returns error")
+
+
+# ===================================================================
+# SceneSchema
+# ===================================================================
+
+func _test_scene_schema() -> void:
+	_group("SceneSchema")
+
+	# get_node_schema — basic Node2D
+	var r := SceneOps.get_node_schema("Node2D")
+	_assert_ok(r, "get_node_schema: Node2D returns ok")
+	_assert(r["data"]["type"] == "Node2D", "get_node_schema: type is Node2D")
+	_assert(r["data"]["inherits"] is Array, "get_node_schema: inherits is array")
+	_assert(r["data"]["inherits"].size() > 0, "get_node_schema: inherits non-empty")
+	_assert(r["data"]["properties"] is Dictionary, "get_node_schema: properties is dict")
+	_assert(r["data"].has("godot_version"), "get_node_schema: has godot_version")
+
+	# get_node_schema — own properties only (default)
+	r = SceneOps.get_node_schema("Sprite2D")
+	_assert_ok(r, "get_node_schema: Sprite2D returns ok")
+	var props: Dictionary = r["data"]["properties"]
+	_assert(props.has("texture"), "get_node_schema: Sprite2D has texture property")
+	# 'position' belongs to Node2D, should NOT appear without include_inherited
+	_assert(not props.has("position"), "get_node_schema: Sprite2D own-only excludes position")
+
+	# get_node_schema — include_inherited
+	r = SceneOps.get_node_schema("Sprite2D", true)
+	_assert_ok(r, "get_node_schema: Sprite2D inherited returns ok")
+	props = r["data"]["properties"]
+	_assert(props.has("position"), "get_node_schema: inherited includes position")
+	_assert(props["position"].has("inherited_from"), "get_node_schema: position has inherited_from")
+
+	# get_node_schema — CharacterBody2D has required_children
+	r = SceneOps.get_node_schema("CharacterBody2D")
+	_assert_ok(r, "get_node_schema: CharacterBody2D returns ok")
+	_assert(r["data"].has("required_children"), "get_node_schema: CharacterBody2D has required_children")
+	_assert(r["data"]["required_children"].size() > 0, "get_node_schema: required_children non-empty")
+
+	# get_node_schema — enum property
+	r = SceneOps.get_node_schema("CharacterBody2D")
+	props = r["data"]["properties"]
+	if props.has("motion_mode"):
+		_assert(props["motion_mode"]["type"] == "enum", "get_node_schema: motion_mode is enum")
+		_assert(props["motion_mode"].has("values"), "get_node_schema: motion_mode has values")
+
+	# get_node_schema — resource property
+	r = SceneOps.get_node_schema("Sprite2D")
+	props = r["data"]["properties"]
+	if props.has("texture"):
+		_assert(props["texture"]["type"] == "Resource", "get_node_schema: texture is Resource")
+		_assert(props["texture"].has("resource_type"), "get_node_schema: texture has resource_type")
+
+	# get_node_schema — GPUParticles2D has warnings
+	r = SceneOps.get_node_schema("GPUParticles2D")
+	_assert_ok(r, "get_node_schema: GPUParticles2D returns ok")
+	_assert(r["data"].has("warnings"), "get_node_schema: GPUParticles2D has warnings")
+
+	# get_node_schema — error: unknown type
+	r = SceneOps.get_node_schema("NotARealClass")
+	_assert_err(r, "get_node_schema: unknown type returns error", "ERR_UNKNOWN_TYPE")
+
+	# get_node_schema — error: not a Node subclass
+	r = SceneOps.get_node_schema("Resource")
+	_assert_err(r, "get_node_schema: Resource returns error", "ERR_NOT_NODE_TYPE")
+
+	# get_supported_node_types
+	r = SceneOps.get_supported_node_types()
+	_assert_ok(r, "get_supported_node_types: returns ok")
+	_assert(r["data"]["types"] is Array, "get_supported_node_types: types is array")
+	_assert(r["data"]["types"].size() > 10, "get_supported_node_types: many types returned")
+
+	# Verify structure of returned types
+	var first_type: Dictionary = r["data"]["types"][0]
+	_assert(first_type.has("name"), "get_supported_node_types: entry has name")
+	_assert(first_type.has("inherits"), "get_supported_node_types: entry has inherits")
+	_assert(first_type.has("category"), "get_supported_node_types: entry has category")
+
+	# Verify categories are valid
+	var has_2d := false
+	var has_3d := false
+	var has_ui := false
+	for t in r["data"]["types"]:
+		if t["category"] == "2D": has_2d = true
+		if t["category"] == "3D": has_3d = true
+		if t["category"] == "UI": has_ui = true
+	_assert(has_2d, "get_supported_node_types: has 2D category")
+	_assert(has_3d, "get_supported_node_types: has 3D category")
+	_assert(has_ui, "get_supported_node_types: has UI category")
+
+	# Verify sorted alphabetically
+	var names: Array = []
+	for t in r["data"]["types"]:
+		names.append(t["name"])
+	var sorted_names := names.duplicate()
+	sorted_names.sort()
+	_assert(names == sorted_names, "get_supported_node_types: sorted alphabetically")
 
 
 # ===================================================================

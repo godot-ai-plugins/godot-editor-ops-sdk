@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "typed_value.schema.json",
+  "description": "Property value: primitive or typed object with _type field",
+  "oneOf": [
+    { "type": "string" },
+    { "type": "number" },
+    { "type": "boolean" },
+    { "type": "null" },
+    {
+      "type": "array",
+      "description": "Godot Array or Packed*Array"
+    },
+    {
+      "type": "object",
+      "description": "Vector2",
+      "required": ["_type", "x", "y"],
+      "properties": {
+        "_type": { "const": "Vector2" },
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Vector2i",
+      "required": ["_type", "x", "y"],
+      "properties": {
+        "_type": { "const": "Vector2i" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Vector3",
+      "required": ["_type", "x", "y", "z"],
+      "properties": {
+        "_type": { "const": "Vector3" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Vector3i",
+      "required": ["_type", "x", "y", "z"],
+      "properties": {
+        "_type": { "const": "Vector3i" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "z": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Color (RGBA, 0.0-1.0)",
+      "required": ["_type"],
+      "properties": {
+        "_type": { "const": "Color" },
+        "r": { "type": "number", "minimum": 0, "maximum": 1 },
+        "g": { "type": "number", "minimum": 0, "maximum": 1 },
+        "b": { "type": "number", "minimum": 0, "maximum": 1 },
+        "a": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Rect2",
+      "required": ["_type", "x", "y", "w", "h"],
+      "properties": {
+        "_type": { "const": "Rect2" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number" },
+        "h": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "NodePath reference",
+      "required": ["_type", "path"],
+      "properties": {
+        "_type": { "const": "NodePath" },
+        "path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Enum value (by index or name)",
+      "required": ["_type", "value"],
+      "properties": {
+        "_type": { "const": "Enum" },
+        "value": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Resource reference (by res:// path)",
+      "required": ["_type", "path"],
+      "properties": {
+        "_type": { "const": "Resource" },
+        "path": { "type": "string", "pattern": "^res://" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Inline resource creation",
+      "required": ["_type"],
+      "properties": {
+        "_type": {
+          "type": "string",
+          "description": "Resource class name, e.g. RectangleShape2D, CircleShape2D, BoxShape3D, StyleBoxFlat, LabelSettings, Gradient"
+        }
+      },
+      "additionalProperties": true
+    }
+  ]
+}

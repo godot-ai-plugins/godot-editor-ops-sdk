@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "node_definition.schema.json",
+  "description": "A node in a Godot scene tree",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Node name in the scene tree. If omitted, derived from type."
+    },
+    "type": {
+      "type": "string",
+      "description": "Godot class name, e.g. CharacterBody2D, Sprite2D, Control. Must be a Node subclass."
+    },
+    "script": {
+      "type": "string",
+      "description": "res:// path to a GDScript or C# script to attach.",
+      "pattern": "^res://"
+    },
+    "properties": {
+      "type": "object",
+      "description": "Node properties as key-value pairs. Values can be primitives or typed objects (see typed_value.schema.json).",
+      "additionalProperties": { "$ref": "typed_value.schema.json" }
+    },
+    "groups": {
+      "type": "array",
+      "description": "Groups this node belongs to.",
+      "items": { "type": "string" }
+    },
+    "children": {
+      "type": "array",
+      "description": "Child nodes (recursive).",
+      "items": { "$ref": "#" }
+    }
+  },
+  "additionalProperties": false
+}

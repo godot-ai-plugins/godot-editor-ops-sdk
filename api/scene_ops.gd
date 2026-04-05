@@ -3,6 +3,7 @@ class_name SceneOps
 extends RefCounted
 
 const Internal = preload("../src/scene/scene_ops_impl.gd")
+const SchemaImpl = preload("../src/scene/scene_schema.gd")
 
 static func create_scene_from_json(json: Dictionary) -> Dictionary:
 	return Internal.create_scene_from_json(json)
@@ -36,3 +37,9 @@ static func list_nodes(scene_path: String) -> Dictionary:
 
 static func find_nodes_by_type(scene_path: String, type_name: String) -> Dictionary:
 	return Internal.find_nodes_by_type(scene_path, type_name)
+
+static func get_node_schema(type_name: String, include_inherited: bool = false) -> Dictionary:
+	return SchemaImpl.get_node_schema(type_name, include_inherited)
+
+static func get_supported_node_types() -> Dictionary:
+	return SchemaImpl.get_supported_node_types()
